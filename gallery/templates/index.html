@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud storage</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}" />
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v6.0.0-beta3/css/all.css" />
+</head>
+
+<body>
+    <div class="nav">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact Us</a></li>
+            <li><a href="{% url 'logout' %}">Logout</a></li>
+        </ul>
+        <div id="file-status"></div>
+    </div>
+    <div class="gallery-container">
+    </div>
+    <progress id="progressBar" value="0" max="100" style="display: none;"></progress>
+    <div class="upload-files">
+        <form id="upload-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" id="fileInput" multiple name="file" accept="image/*,video/*" style="display: none" />
+            <label for="fileInput" class="cssbuttons-io-button">
+                <svg viewBox="0 0 640 512" fill="white" height="1em" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z">
+                    </path>
+                </svg>
+                <span>Upload</span>
+            </label>
+        </form>
+    </div>
+    <div class="showMedia">
+        <div class="options">
+            <div class="download">
+                <i class="fa-solid fa-download"></i>
+            </div>
+            <div class="remove">
+                <i class="fa-solid fa-trash"></i>
+            </div>
+            <div class="close">
+                <i class="fa-regular fa-xmark"></i>
+            </div>
+        </div>
+        <div class="loader">
+            <li class="ball"></li>
+            <li class="ball"></li>
+            <li class="ball"></li>
+        </div>
+    </div>
+</body>
+<script>
+    let offset_id = 0;
+    let isRequestInProgress = false;
+
+    document.getElementById("fileInput").addEventListener("change", async function (event){
+        const files = event.target.files;
+        for (let i = 0; i < files.length; i++) {
+            upload(files[i]);
+        }
+    });
+
+    function upload(file) {
+
+        document.getElementById("file-status").innerText = file.name + " uploading...";
+
+        const formData = new FormData();
+        formData.append('files', file);
+        fetch('{% url "upload" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            for(let i=0; i<data['files'].length; i++) {
+                mediaGallery(data['files'][i]['type'], data['files'][i]['message_id'], data['files'][i]['message'], true);
+            }
+        })
+        .catch(error => upload(file));
+    }
+
+    async function displayMedia(event) {
+        const showmedia = document.getElementsByClassName("showMedia")[0];
+        const closeBtn = document.getElementsByClassName("close")[0];
+        const downloadBtn = document.getElementsByClassName("download")[0];
+        const removeBtn = document.getElementsByClassName("remove")[0];
+        const loader = document.getElementsByClassName("loader")[0];
+        id = event.id.substring(2);
+
+        const handleClose = function() {
+            loader.style.display = "flex";
+            showmedia.style.display = "none";
+            document.body.classList.remove("no-scroll");
+            if (document.getElementsByClassName("showMedia__image").length > 0)
+                document.getElementsByClassName("showMedia__image")[0].remove();
+            closeBtn.removeEventListener("click", handleClose);
+        }
+        closeBtn.addEventListener("click", handleClose);
+
+        const handleDownload = async function(event) {
+            // const storedOffsetKey = `download_offset_${id}`;
+            // let offset = parseInt(localStorage.getItem(storedOffsetKey) || '0', 10);
+            // const chunkSize = 64 * 1024;
+            // let chunks = [];
+            // try {
+            //     while (true) {
+            //         const response = await fetch('{% url "download_media" %}', {
+            //             method: 'POST',
+            //             headers: {
+            //                 'Content-Type': 'application/json',
+            //                 'X-CSRFToken': '{{ csrf_token }}',
+            //                 'Range': `bytes=${offset}-${offset + chunkSize - 1}`
+            //             },
+            //             body: JSON.stringify({ "message_id": id })
+            //         });
+
+            //         if (!response.ok && response.status !== 206) {
+            //             throw new Error('Network response was not ok');
+            //         }
+                    
+            //         const contentDisposition = response.headers.get('Content-Disposition');
+            //         if (contentDisposition && contentDisposition.indexOf('attachment') !== -1) {
+            //             filename = contentDisposition.split('filename=')[1].split(';')[0].replace(/"/g, '').replace(/\\"/g, '').replace(/'/g, '').replace(/\\'/g, '').trim();
+
+            //             const reader = response.body.getReader();
+            //             const { done, value } = await reader.read();
+            //             if (done) {
+            //                 break;
+            //             }
+
+            //             chunks.push(value);
+            //             offset += value.length;
+            //             localStorage.setItem(storedOffsetKey, offset.toString());
+
+            //             if (value.length < chunkSize) {
+            //                 break;
+            //             }
+
+            //         }
+            //     }
+            //     const blob = new Blob(chunks);
+            //     const downloadUrl = URL.createObjectURL(blob);
+            //     const a = document.createElement('a');
+            //     a.href = downloadUrl;
+            //     a.download = filename;  // You can specify the file name
+            //     document.body.appendChild(a);
+            //     a.click();
+            //     document.body.removeChild(a);
+            //     URL.revokeObjectURL(downloadUrl);
+            //     localStorage.removeItem(storedOffsetKey);
+            // } catch (error) {
+            //     console.error('Error:', error);
+            // } finally {
+            //     downloadBtn.removeEventListener("click", handleDownload);
+            // }
+
+
+
+
+
+            try {
+                const response = await fetch('{% url "download_media" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({ "message_id": id })
+                });
+
+                if (response.ok) {
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    if (contentDisposition && contentDisposition.indexOf('attachment') !== -1) {
+                        filename = contentDisposition.split('filename=')[1].split(';')[0].replace(/"/g, '').replace(/\\"/g, '').replace(/'/g, '').replace(/\\'/g, '').trim();
+
+                        const reader = response.body.getReader();
+                        const stream = new ReadableStream({
+                            start(controller) {
+                                function push() {
+                                    reader.read().then(({ done, value }) => {
+                                        if (done) {
+                                            controller.close();
+                                            return;
+                                        }
+                                        controller.enqueue(value);
+                                        push();
+                                    });
+                                }
+                                push();
+                            }
+                        });
+
+                        const newResponse = new Response(stream);
+                        const blob = await newResponse.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                    }
+                } else {
+                    console.error('Failed to download media');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                downloadBtn.removeEventListener("click", handleDownload);
+            }
+
+
+
+        }
+        downloadBtn.addEventListener("click", handleDownload);
+
+        showmedia.style.display = "flex";
+        document.body.classList.add("no-scroll");
+
+        if (event.id.startsWith("im")) {
+            const image = document.createElement("img");
+            image.classList.add("showMedia__image");
+            image.src = document.querySelector("#i" + id).src;
+            showmedia.appendChild(image);
+            loader.style.display = "none";
+        } else {
+            const videoElement = document.createElement('video');
+            const videoSource = document.createElement('source');
+            videoElement.classList.add("showMedia__image");
+            videoElement.controls = true;
+            videoSource.type = "video/mp4";
+            videoElement.appendChild(videoSource);
+            videoElement.append("Your browser does not support the video tag.");
+            showmedia.appendChild(videoElement);
+
+
+            try {
+                const response = await fetch("{% url 'fetch_video' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ "video_id": id })
+                });
+
+                // if (response.ok) {
+                //     const videoBlob = await response.blob();
+                //     const videoUrl = URL.createObjectURL(videoBlob);
+                //     videoSource.src = videoUrl;
+                //     videoElement.load();
+                //     videoElement.play();
+                // } else {
+                //     console.error('Error fetching video:', response.statusText);
+                // }
+
+                const data = await response.json();
+                if (data['status'] === 'success') {
+                    const videoId = data['video_url'].split('/').pop().split('.')[0];
+                    videoElement.controls = true;
+                    videoSource.src = "{% url 'stream_video' 'video_id_placeholder' %}".replace('video_id_placeholder', videoId);
+                    videoElement.load()
+                    videoElement.play();
+                } else {
+                    console.error('Error fetching video:', data['message']);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                loader.style.display = "none";
+            }
+        }
+    }
+
+    async function mediaGallery(type, id, message, pos) {
+        let gallery_item = document.createElement("div");
+        let gallery_img = document.createElement("img");
+        let gallery__title = document.createElement("h2");
+
+        if (type == "video") {
+            let gallery__timestamb = document.createElement("p");
+            let gallery__play = document.createElement("div");
+            gallery__timestamb.classList.add("gallery_timestamb");
+            gallery__timestamb.id = "t" + id;
+            gallery__play.classList.add("gallery_play");
+            gallery__play.innerHTML = "<i class='fa-duotone fa-play'></i>";
+            gallery_item.id = "vd" + id;
+            gallery_item.appendChild(gallery__timestamb);
+            gallery_item.appendChild(gallery__play);
+        } else {
+            gallery_item.id = "im" + id;
+        }
+
+        gallery_item.classList.add("gallery__item");
+        gallery_item.addEventListener('click', function (event) {
+            displayMedia(this);
+        });
+        gallery_img.id = "i" + id;
+        gallery_img.classList.add("gallery__img");
+        gallery__title.classList.add("gallery__title");
+
+        gallery_item.appendChild(gallery_img);
+        gallery_item.appendChild(gallery__title);
+
+        let firstChild = document.querySelector(".gallery-container").firstChild;
+        if(pos) {
+            document.getElementById("file-status").innerText = "Uploaded";
+            document.querySelector(".gallery-container").insertBefore(gallery_item, firstChild);
+        } else
+            document.querySelector(".gallery-container").appendChild(gallery_item);
+
+        sendRequest(type, id);
+
+        if (!pos)
+            observeLastGalleryItem();
+    }
+
+    async function sendRequest(type, id) {
+        try {
+            const response = await fetch("{% url 'media' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ "type": type, "message_id": id })
+            });
+
+            const data = await response.json();
+
+            if (data['type'] == "image") {
+                document.querySelector("#i" + id).src = data['src'];
+            } else if (data['type'] == "video") {
+                document.querySelector("#i" + id).src = data['src'];
+                document.querySelector("#t" + id).innerText = data['duration'];
+            }
+        } catch (error) {
+            sendRequest(type, id);
+        }
+    }
+
+    function get_media() {
+        if (isRequestInProgress) return;
+        isRequestInProgress = true;
+
+        fetch('{% url "get_media" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ "offset_id": offset_id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            offset_id = data['offset_id'];
+            for(let i=0; i<data['media_files'].length; i++) {
+                mediaGallery(data['media_files'][i]['type'], data['media_files'][i]['message_id'], data['media_files'][i]['message'], false);
+            }
+        })
+        .catch(error => console.error('Error:', error))
+        .finally(() => {
+            isRequestInProgress = false;
+        });
+    }
+
+    function observeLastGalleryItem() {
+        const galleryItems = document.querySelectorAll('.gallery__item');
+        const lastGalleryItem = galleryItems[galleryItems.length - 1];
+
+        if (lastGalleryItem) {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    get_media();
+                    observer.unobserve(lastGalleryItem);
+                }
+            }, {
+                root: null,
+                rootMargin: '0px',
+                threshold: 1.0
+            });
+
+            observer.observe(lastGalleryItem);
+        }
+    }
+
+    get_media();
+
+</script>
+
+</html>

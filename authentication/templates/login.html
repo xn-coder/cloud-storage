@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login</title>
+        <style>
+            body {
+                background-color: #212121;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+
+            .card {
+                border-radius: 20px;
+                padding: 5px;
+                box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
+                background-image: linear-gradient(
+                    144deg,
+                    #af40ff,
+                    #5b42f3 50%,
+                    #00ddeb
+                );
+            }
+
+            .card__content {
+                background: rgb(5, 6, 45);
+                border-radius: 17px;
+                padding: 2em 3em;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            form input,
+            form select {
+                border: 1px solid rgb(48, 49, 110);
+                color: rgb(106, 108, 215);
+                outline: none;
+                margin: 1em 0;
+                border-radius: 15px;
+                padding: 0.5em 0 0.5em 1em;
+                background: rgb(25, 26, 72);
+                box-shadow: inset 2px 5px 10px rgba(0, 0, 0, 0.3);
+                transition: 300ms ease-in-out;
+                width: 100%;
+            }
+
+            input:focus {
+                border: 2px solid rgb(24, 24, 55);
+                background: rgb(36, 37, 104);
+                transform: scale(1.05);
+                box-shadow: 1px 1px 10px rgb(67, 69, 179),
+                    -1px -1px 10px rgb(64, 65, 168);
+            }
+
+            h2 {
+                color: rgb(106, 108, 215);
+            }
+
+            button {
+                --bezier: cubic-bezier(0.22, 0.61, 0.36, 1);
+                --edge-light: hsla(0, 0%, 50%, 0.8);
+                --text-light: rgba(255, 255, 255, 0.4);
+                --back-color: 240, 40%;
+
+                cursor: pointer;
+                padding: 0.7em 1em;
+                margin-top: 1em;
+                border-radius: 0.5em;
+                min-height: 2.4em;
+                min-width: 3em;
+                display: flex;
+                align-items: center;
+                gap: 0.5em;
+
+                font-size: 18px;
+                letter-spacing: 0.05em;
+                line-height: 1;
+                font-weight: bold;
+
+                background: linear-gradient(
+                    140deg,
+                    hsla(var(--back-color), 50%, 1) min(2em, 20%),
+                    hsla(var(--back-color), 50%, 0.6) min(8em, 100%)
+                );
+                color: hsla(0, 0%, 90%);
+                border: 0;
+                box-shadow: inset 0.4px 1px 4px var(--edge-light);
+
+                transition: all 0.1s var(--bezier);
+            }
+
+            button:hover {
+                --edge-light: hsla(0, 0%, 50%, 1);
+                text-shadow: 0px 0px 10px var(--text-light);
+                box-shadow: inset 0.4px 1px 4px var(--edge-light),
+                    2px 4px 8px hsla(0, 0%, 0%, 0.295);
+                transform: scale(1.1);
+            }
+
+            button:active {
+                --text-light: rgba(255, 255, 255, 1);
+
+                background: linear-gradient(
+                    140deg,
+                    hsla(var(--back-color), 50%, 1) min(2em, 20%),
+                    hsla(var(--back-color), 50%, 0.6) min(8em, 100%)
+                );
+                box-shadow: inset 0.4px 1px 8px var(--edge-light),
+                    0px 0px 8px hsla(var(--back-color), 50%, 0.6);
+                text-shadow: 0px 0px 20px var(--text-light);
+                color: hsla(0, 0%, 100%, 1);
+                letter-spacing: 0.1em;
+                transform: scale(1);
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="card">
+            <div class="card__content">
+                <h2>Login</h2>
+                <form method="POST" id="login-form" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <select class="input" id="country" name="country">
+                        <option disabled selected>Choose country</option>
+                        <option value="+91">In (+91)</option>
+                        <option value="+1">UK (+1)</option>
+                        <option value="+44">US (+44)</option>
+                        {% for code, prefix in country_codes %}
+                        <option value="{{ prefix }}">
+                            {{ code }} ({{ prefix }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="tel" autocomplete="off" name="phone" id="phone" placeholder="Phone Number" maxlength="13"/>
+                    <input type="tel" autocomplete="off" name="otp" id="otp" placeholder="Otp" maxlength="6"
+                        {% if otp %}
+                            value="{{ otp }}"
+                        {% endif %}
+                        {% if phone|length < 10 %}
+                            style="display: none"
+                        {% else %}
+                            style="display: block"
+                        {% endif %}
+                    />
+                    <input type="password" autocomplete="off" name="passwd" id="passwd" placeholder="Password"
+                        {% if F2A %} 
+                            style="display: block"
+                        {% else %}
+                            style="display: none"
+                        {% endif %}
+                    />
+                    <button id="login" type="submit">Login</button>
+                    {% if error %}
+                        <p style="color: red" id="error">{{ error }}</p>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        <script>
+            {% if code %}
+              document.getElementById("country").value = "{{ code }}";
+            {% endif %}
+            if (document.getElementById("country").value != "Choose country" && "{{ phone }}".length < 10) {
+              document.getElementById("phone").value = document.getElementById("country").value;
+            } else {
+              document.getElementById("phone").value = "{{ phone }}";
+            }
+            document.getElementById("country").addEventListener("change", () => {
+              document.getElementById("phone").value =
+                document.getElementById("country").value;
+            });
+        </script>
+    </body>
+</html>
