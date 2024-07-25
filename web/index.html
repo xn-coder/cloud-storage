@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud storage</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="favicon.ico" type="image/icon">
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v6.0.0-beta3/css/all.css" />
+</head>
+
+<body>
+    <div class="nav">
+        <div class="menu-btn">
+            <i class="fa-solid fa-bars"></i>
+        </div>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/">About</a></li>
+            <li><a href="/">Contact Us</a></li>
+            <li><a id="logout">Logout</a></li>
+        </ul>
+        <div class="progress">
+            <div class="status">
+                <span id="progress-status">1/2</span>
+                <span id="progress-message">Uploading...</span>
+                <span id="progress-percent">50%</span>
+            </div>
+            <progress id="progressBar" value="50" max="100" style="display: block;"></progress>
+        </div>
+    </div>
+    <div class="gallery-container">
+    </div>
+    <div class="upload-files">
+        <form id="upload-form" enctype="multipart/form-data">
+            <input type="file" id="fileInput" multiple name="file" accept="image/*,video/*" style="display: none" />
+            <label for="fileInput" class="cssbuttons-io-button">
+                <svg viewBox="0 0 640 512" fill="white" height="1em" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z">
+                    </path>
+                </svg>
+                <span>Upload</span>
+            </label>
+        </form>
+    </div>
+    <div class="showMedia">
+        <div class="options">
+            <div class="download">
+                <i class="fa-solid fa-download"></i>
+            </div>
+            <div class="remove">
+                <i class="fa-solid fa-trash"></i>
+            </div>
+            <div class="close">
+                <i class="fa-regular fa-xmark"></i>
+            </div>
+        </div>
+        <div class="loader">
+            <li class="ball"></li>
+            <li class="ball"></li>
+            <li class="ball"></li>
+        </div>
+    </div>
+</body>
+<script>
+    const apiUrl = "http://127.0.0.1:8000";
+    // const apiUrl = "https://cloud-storage-xncoder.vercel.app";
+    const sessionString = localStorage.getItem('session_string');
+    let offsetId = 0;
+    let prevDate = "";
+    let isRequestInProgress = false;
+
+    function observeLastGalleryItem() {
+        const galleryItems = document.querySelectorAll('.gallery__item');
+        const lastGalleryItem = galleryItems[galleryItems.length - 1];
+
+        if (lastGalleryItem) {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    listMedia()
+                    observer.unobserve(lastGalleryItem);
+                }
+            }, {
+                root: document.querySelector(".gallery-container"),
+                rootMargin: '0px',
+                threshold: 1.0
+            });
+
+            observer.observe(lastGalleryItem);
+        }
+    }
+
+    async function sendRequest(type, id) {
+        try {
+            const response = await fetch(`${apiUrl}/media/?session_string=${sessionString}&type=${type}&id=${id}`);
+            const data = await response.json();
+            if (data['type'] == "image") {
+                document.querySelector("#i" + id).src = data['src'];
+            } else if (data['type'] == "video") {
+                document.querySelector("#i" + id).src = data['src'];
+                document.querySelector("#t" + id).innerText = data['duration'];
+            }
+        } catch (error) {
+            sendRequest(type, id);
+        }
+    }
+
+    async function displayMedia(id, type, message) {
+        const showmedia = document.getElementsByClassName("showMedia")[0];
+        const closeBtn = document.getElementsByClassName("close")[0];
+        const downloadBtn = document.getElementsByClassName("download")[0];
+        const removeBtn = document.getElementsByClassName("remove")[0];
+        const loader = document.getElementsByClassName("loader")[0];
+        document.querySelector(".nav ul").style.zIndex = 0;
+        
+        const handleClose = function() {
+            loader.style.display = "flex";
+            showmedia.style.display = "none";
+            document.body.classList.remove("no-scroll");
+            if (document.getElementsByClassName("showMedia__image").length > 0)
+                document.getElementsByClassName("showMedia__image")[0].remove();
+            closeBtn.removeEventListener("click", handleClose);
+        }
+        closeBtn.addEventListener("click", handleClose);
+
+        const handleDownload = async function() {
+            try {
+                const downloadResponse = await fetch(`${apiUrl}/download/${id}?session_string=${sessionString}`);
+                const contentDisposition = downloadResponse.headers.get('Content-Disposition');
+                if (downloadResponse.ok) {
+                    const blob = await downloadResponse.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = message.substring(message.lastIndexOf("-")+1, message.length) + "." + message.substring(message.lastIndexOf("-", 13)+1, message.lastIndexOf("-"));
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const downloadResult = await downloadResponse.json();
+                    alert(downloadResult.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                downloadBtn.removeEventListener("click", handleDownload);
+            }
+        }
+        downloadBtn.addEventListener("click", handleDownload);
+
+        const handleRemove = async function() {
+
+            document.getElementsByClassName("gallery-container")[0].removeChild(document.getElementById(type=="image"?"im"+id:"vd"+id));
+            closeBtn.click()
+
+            const response = await fetch(`${apiUrl}/remove/?session_string=${sessionString}&id=${id}`);
+            const data = await response.json();
+            if (data.success) {
+                showmedia.style.display = "none";
+            }
+        }
+        removeBtn.addEventListener("click", handleRemove);
+
+        showmedia.style.display = "flex";
+        document.body.classList.add("no-scroll");
+
+        if (type == "image") {
+            const image = document.createElement("img");
+            image.classList.add("showMedia__image");
+            image.src = document.querySelector("#i" + id).src;
+            showmedia.appendChild(image);
+            loader.style.display = "none";
+        } else {
+            const videoElement = document.createElement('video');
+            videoElement.classList.add("showMedia__image");
+            showmedia.appendChild(videoElement);
+
+            const response = await fetch(`${apiUrl}/stream/${id}?session_string=${sessionString}`);
+            if (response.ok) {
+                videoElement.src = `${apiUrl}/stream/${id}?session_string=${sessionString}`;
+                videoElement.controls = true;
+                videoElement.load();
+                videoElement.play();
+                loader.style.display = "none";
+            } else {
+                const result = await response.json();
+                alert(result.detail);
+            }
+        }
+    }
+
+    async function mediaGallery(type, id, message, pos) {
+        let gallery_item = document.createElement("div");
+        let gallery_img = document.createElement("img");
+        let gallery__title = document.createElement("h2");
+        const date = message.substring(message.lastIndexOf("-")+1, message.lastIndexOf("-")+9);
+
+        if (type == "video") {
+            let gallery__timestamb = document.createElement("p");
+            let gallery__play = document.createElement("div");
+            gallery__timestamb.classList.add("gallery_timestamb");
+            gallery__timestamb.id = "t" + id;
+            gallery__play.classList.add("gallery_play");
+            gallery__play.innerHTML = "<i class='fa-duotone fa-play'></i>";
+            gallery_item.id = "vd" + id;
+            gallery_item.appendChild(gallery__timestamb);
+            gallery_item.appendChild(gallery__play);
+        } else {
+            gallery_item.id = "im" + id;
+        }
+
+        gallery_item.classList.add("gallery__item");
+        gallery_item.addEventListener('click', function() {
+            displayMedia(id, type, message);
+        });
+        gallery_img.id = "i" + id;
+        gallery_img.classList.add("gallery__img");
+        gallery__title.classList.add("gallery__title");
+
+        gallery_item.appendChild(gallery_img);
+        gallery_item.appendChild(gallery__title);
+
+        const galleryContainer = document.querySelector(".gallery-container");
+        const itemDates = galleryContainer.getElementsByClassName("item_date");
+        let lastItemDate = itemDates[itemDates.length - 1];
+
+        if (date != prevDate) {
+            prevDate = date;
+            const item_date = document.createElement("div");
+            item_date.classList.add("item_date");
+            item_date.innerHTML = "<span>" + date.substring(6, 8) + "-" + date.substring(4, 6) + "-" + date.substring(0, 4) + "</span>";
+            galleryContainer.appendChild(item_date);
+            lastItemDate = item_date;
+        }
+
+        if (pos) {
+            galleryContainer.insertBefore(gallery_item, lastItemDate.nextSibling);
+        } else {
+            galleryContainer.appendChild(gallery_item);
+        }
+        
+        sendRequest(type, id);
+        
+        if (!pos) {
+            observeLastGalleryItem();
+        }
+    }
+
+    async function listMedia() {
+        if (isRequestInProgress) return;
+        isRequestInProgress = true;
+        try {
+            const sessionString = localStorage.getItem('session_string');
+            const response = await fetch(`${apiUrl}/list-files/?session_string=${sessionString}&offset=${offsetId}`);
+            const results = await response.json();
+            try {
+                offsetId = results.offset_id
+                for(let i=0; i<results.files.length; i++) {
+                    mediaGallery(results.files[i].type, results.files[i].id, results.files[i].message, false);
+                }
+            }
+            catch (error) {
+                alert(error)
+            }
+        } catch (error) {
+            console.log(error);
+            location.href = "./login"
+        } finally {
+            isRequestInProgress = false;
+        }
+    }
+
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+            e.preventDefault();
+            const files = document.getElementById('fileInput').files;
+            document.getElementsByClassName("progress")[0].style.display = "block";
+            document.getElementById('progress-message').innerText = "Uploading...";
+            let f = 1;
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('session_string', sessionString);
+                const xhr = new XMLHttpRequest();
+
+                document.getElementById('progress-status').innerText = `${f}/${files.length}`;
+        
+                xhr.upload.addEventListener("progress", (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        document.getElementById('progress-percent').innerText = `${percentComplete.toFixed(2)}%`;
+                        document.getElementById('progressBar').value = percentComplete;
+                        document.getElementById('progressBar').style.display = 'block';
+                    }
+                });
+                xhr.onload = async () => {
+                    const data = JSON.parse(xhr.responseText);
+                    mediaGallery(data.file.type, data.file.id, data.file.message, true);
+                };
+                xhr.onerror = () => {
+                    console.error('Upload failed');
+                    document.getElementById('progressBar').style.display = 'none';
+                };
+
+                xhr.open('POST', `${apiUrl}/upload/`);
+                xhr.send(formData);
+                f += 1;
+            }
+            document.getElementById('progress-message').innerText = "Uploaded";
+            setTimeout(() => {
+                document.getElementsByClassName("progress")[0].style.display = "none";
+            }, 5000);
+        });
+
+    document.getElementById("logout").addEventListener("click", async function() {
+        const sessionString = localStorage.getItem('session_string');
+        const formData = new FormData();
+        formData.append('session_string', sessionString);
+        await fetch(`${apiUrl}/logout/`, {
+            method: 'POST',
+            body: formData
+        });
+        localStorage.clear()
+        location.reload()
+    });
+
+    document.getElementsByClassName("menu-btn")[0].addEventListener("click", function() {
+        const navUl = document.querySelector(".nav ul");
+        const mediaQuery = window.matchMedia("(max-width: 767px)");
+        const nav = document.querySelector(".nav ul");
+        
+        function handleNavDisplay() {
+            if (mediaQuery.matches) {
+                if (navUl.style.display === "flex") {
+                    navUl.style.display = "none";
+                } else {
+                    navUl.style.display = "flex";
+                    nav.style.zIndex = "1";
+                    document.addEventListener("click", function hideNav(event) {
+                        if (!navUl.contains(event.target) && !event.target.closest(".menu-btn")) {
+                            navUl.style.display = "none";
+                            document.removeEventListener("click", hideNav);
+                        }
+                    });
+                }
+            } else {
+                navUl.style.display = "flex";
+                nav.style.zIndex = "1";
+            }
+        }
+
+        mediaQuery.addEventListener("change", handleNavDisplay);
+        handleNavDisplay();
+    });
+
+    if (sessionString)
+        listMedia()
+    else
+        location.href = "./login"
+
+</script>
+
+</html>
