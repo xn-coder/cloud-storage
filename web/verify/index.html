@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud - Verify</title>
+    <link rel="icon" href="../favicon.ico" type="image/icon">
+    <link rel="stylesheet" href="../login.css">
+</head>
+
+<body>
+    <div class="card">
+        <div class="card__content">
+            <h2>Verify with Code</h2>
+            <span style="margin-right: auto;"><span style="color: rgb(106, 108, 215);" id="phone-number"></span><span
+                    id="edit"
+                    style="margin-left: 10px; color: rgb(141, 142, 237); border-bottom: 1px solid rgb(141, 142, 237); cursor: pointer;">Edit</span></span>
+            <form id="verify-form">
+                <input type="tel" autocomplete="off" name="otp" id="otp" placeholder="Otp" maxlength="5" />
+                <input type="password" autocomplete="off" name="password" id="password" placeholder="2FA Password"
+                    hidden />
+                <button type="submit">Verify</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        const apiUrl = "http://127.0.0.1:8000";
+        // const apiUrl = "https://cloud-storage-xncoder.vercel.app";
+        const phoneNumber = localStorage.getItem('phone_number');
+        const phoneHash = localStorage.getItem('phone_hash_code');
+        const otp = localStorage.getItem('code');
+        const sessionString = localStorage.getItem('session_string');
+        document.getElementById("phone-number").innerText = phoneNumber;
+
+        document.getElementById("edit").addEventListener("click", () => {
+            window.history.back();
+        })
+
+        if (otp) {
+            document.getElementById("otp").value = otp;
+            document.getElementById("otp").readOnly = true;
+            document.getElementById('password').hidden = false;
+        }
+
+        document.getElementById("verify-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const code = document.getElementById('otp').value;
+            const password = document.getElementById('password').value;
+            if (code) {
+                const formData = new FormData();
+                formData.append('phone_number', phoneNumber);
+                formData.append('phone_code_hash', phoneHash);
+                formData.append('code', code);
+                if (password) {
+                    formData.append('password', password);
+                }
+                if (sessionString) {
+                    formData.append('session_string', sessionString);
+                }
+                const response = await fetch(`${apiUrl}/verify-code/`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.message == "2FA enabled. Please provide the password") {
+                    window.localStorage.setItem("code", code);
+                    window.location.reload()
+                } else if (result.message == "Signed in successfully") {
+                    localStorage.clear()
+                    localStorage.setItem('session_string', result.session_string);
+                    window.location.href = "../";
+                } else {
+                    alert(result.message);
+                }
+            } else {
+                alert("Please enter otp!");
+            }
+        })
+    </script>
+</body>
+
+</html>

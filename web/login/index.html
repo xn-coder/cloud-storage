@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cloud - Login</title>
+    <link rel="icon" href="../favicon.ico" type="image/icon">
+    <link rel="stylesheet" href="../login.css">
+    </head>
+
+    <body>
+        <div class="card">
+            <div class="card__content">
+                <h2>Login</h2>
+                <select class="input" id="country" name="country">
+                    <option value="+91">In (+91)</option>
+                    <option value="+1">UK (+1)</option>
+                    <option value="+44">US (+44)</option>
+                </select>
+                <form id="login-form">
+                    <input type="tel" autocomplete="off" name="phone" id="phone" placeholder="Phone Number"/>
+                    <button type="submit">Next</button>
+                </form>
+            </div>
+        </div>
+        <script>
+            const apiUrl = "http://127.0.0.1:8000";
+            // const apiUrl = "https://cloud-storage-xncoder.vercel.app";
+            document.getElementById("phone").value = document.getElementById("country").value;
+            document.getElementById("country").addEventListener("change", () => {
+              document.getElementById("phone").value = document.getElementById("country").value;
+            });
+            document.getElementById("login-form").addEventListener("submit", async(e) => {
+                e.preventDefault();
+                const phoneNumber = document.getElementById('phone').value;
+                const sessionString = localStorage.getItem('session_string');
+                if (phoneNumber && phoneNumber.length > 10) {
+                    const formData = new FormData();
+                    formData.append('phone_number', phoneNumber);
+                    if (sessionString) {
+                        formData.append('session_string', sessionString);
+                    }
+                    const response = await fetch(`${apiUrl}/sign-in/`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    console.log(result);
+                    if (result.message === "Code sent to your phone number") {
+                        localStorage.setItem('phone_number', phoneNumber);
+                        localStorage.setItem('phone_hash_code', result.phone_code);
+                        window.location.href = "../verify";
+                    } else if (result.message === "Already signed in") {
+                        localStorage.clear()
+                        localStorage.setItem('session_string', result.session_string);
+                        location.href = "../";
+                    } else {
+                        alert(result.message);
+                    }
+                } else {
+                    alert("Invalid phone number");
+                }
+            })
+        </script>
+    </body>
+</html>
