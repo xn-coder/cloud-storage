@@ -70,7 +70,7 @@
     // const apiUrl = "https://cloud-storage-xncoder.vercel.app";
     const sessionString = localStorage.getItem('session_string');
     let offsetId = 0;
-    let prevDate = "";
+    let lastDate = "", firstDate = "";
     let isRequestInProgress = false;
 
     function observeLastGalleryItem() {
@@ -153,14 +153,17 @@
         downloadBtn.addEventListener("click", handleDownload);
 
         const handleRemove = async function() {
-
-            document.getElementsByClassName("gallery-container")[0].removeChild(document.getElementById(type=="image"?"im"+id:"vd"+id));
+            let rmid = message.substring(message.lastIndexOf("-")+1, message.lastIndexOf("-")+9);
+            document.getElementById(type=="image"?"im"+id:"vd"+id).remove();
+            if (document.getElementById(rmid).nextSibling.classList.contains("item_date"))
+                document.getElementById(rmid).remove();
+            removeBtn.removeEventListener("click", handleRemove);
             closeBtn.click()
 
             const response = await fetch(`${apiUrl}/remove/?session_string=${sessionString}&id=${id}`);
             const data = await response.json();
-            if (data.success) {
-                showmedia.style.display = "none";
+            if (data.message) {
+                console.log(data.message);
             }
         }
         removeBtn.addEventListener("click", handleRemove);
@@ -177,6 +180,7 @@
         } else {
             const videoElement = document.createElement('video');
             videoElement.classList.add("showMedia__image");
+            videoElement.poster = document.querySelector("#i" + id).src;
             showmedia.appendChild(videoElement);
 
             const response = await fetch(`${apiUrl}/stream/${id}?session_string=${sessionString}`);
@@ -225,20 +229,24 @@
         gallery_item.appendChild(gallery__title);
 
         const galleryContainer = document.querySelector(".gallery-container");
-        const itemDates = galleryContainer.getElementsByClassName("item_date");
-        let lastItemDate = itemDates[itemDates.length - 1];
+        const itemDate = document.getElementById(date);
 
-        if (date != prevDate) {
-            prevDate = date;
+        if(itemDate == null && !pos) {
             const item_date = document.createElement("div");
             item_date.classList.add("item_date");
+            item_date.id = date;
             item_date.innerHTML = "<span>" + date.substring(6, 8) + "-" + date.substring(4, 6) + "-" + date.substring(0, 4) + "</span>";
             galleryContainer.appendChild(item_date);
-            lastItemDate = item_date;
+        } else if(itemDate == null && pos) {
+            const item_date = document.createElement("div");
+            item_date.classList.add("item_date");
+            item_date.id = date;
+            item_date.innerHTML = "<span>" + date.substring(6, 8) + "-" + date.substring(4, 6) + "-" + date.substring(0, 4) + "</span>";
+            galleryContainer.insertBefore(item_date, galleryContainer.firstChild.nextSibling);
         }
 
         if (pos) {
-            galleryContainer.insertBefore(gallery_item, lastItemDate.nextSibling);
+            galleryContainer.insertBefore(gallery_item, document.getElementById(date).nextSibling);
         } else {
             galleryContainer.appendChild(gallery_item);
         }

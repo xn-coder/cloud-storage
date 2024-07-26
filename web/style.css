@@ -39,7 +39,7 @@ div.nav ul li {
 div.nav ul li a {
     border-radius: 5px;
     padding: 5px 20px;
-    color: rgb(106, 108, 215);
+    color: rgb(147, 149, 220);
     background-color: transparent;
     border: none;
     cursor: pointer;
@@ -55,17 +55,17 @@ div.menu-btn {
 }
 
 div.menu-btn:hover {
-    color: rgb(60, 61, 117);
+    color: rgb(177, 178, 240);
     background-color: rgb(92, 92, 154);
 }
 
 div.nav ul li a:hover {
-    color: rgb(60, 61, 117);
+    color: rgb(177, 178, 240);
     background-color: rgb(92, 92, 154);
 }
 
 div.nav ul li a:focus {
-    color: rgb(60, 61, 117);
+    color: rgb(177, 178, 240);
     background-color: rgb(92, 92, 154);
 }
 
@@ -120,7 +120,7 @@ label.cssbuttons-io-button:active {
 div.item_date {
     grid-column: 1 / -1;
     text-align: center;
-    margin-bottom: 10px;
+    margin: 10px 0;
 }
 
 div.item_date span {
@@ -160,6 +160,7 @@ div.item_date span {
     position: relative;
     z-index: 0;
     height: 150px;
+    border-radius: 10px;
 }
 
 .gallery__img {
@@ -277,6 +278,7 @@ div.showMedia div.options div.download i, div.showMedia div.options div.remove i
         position: relative;
         z-index: 0;
         height: 100px;
+        border-radius: 10px;
     }
     div.nav ul {
         display: none;
