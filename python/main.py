@@ -9,8 +9,8 @@ import datetime
 import base64
 from telethon.sessions import StringSession
 
-api_id = 21020320
-api_hash = "4d7eae02be994fb80da9db278f189850"
+api_id = YOUR_API_ID
+api_hash = "YOUR_API_HASH"
 
 app = FastAPI()
 client = None
